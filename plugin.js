@@ -7,19 +7,40 @@
  * @module intersection
  */
 exports.handlers = {
-    jsdocCommentFound(jsdocComment, parser) {
-        let tags = ['augments', 'extends', 'type', 'mixes', 'property', 'prop', 'param', 'typedef', 'returns'];
-        for (let tag of tags) {
-            let r = new RegExp('^.+@' + tag + '\\s*\\{(?:.+&.+)\\s*\\}', 'gm');
-            let match = r.exec(jsdocComment.comment);
-            while (match && match.length) {
-                let len = match[0].length;
-                let before = jsdocComment.comment.substr(0, match.index);
-                let after = jsdocComment.comment.substr(match.index + len);
-                let replaced = match[0].replace(/&/g, '|');
-                jsdocComment.comment = before + replaced + after;
-                match = r.exec(jsdocComment.comment);
-            }
-        }
+  // eslint-disable-next-line no-unused-vars
+  jsdocCommentFound(jsdocComment, parser) {
+    let tags = [
+      "augments",
+      "extends",
+      "type",
+      "mixes",
+      "property",
+      "prop",
+      "param",
+      "typedef",
+      "returns",
+    ];
+    for (let tag of tags) {
+      // eslint-disable-next-line security/detect-non-literal-regexp
+      const r = new RegExp("^.+@" + tag + "\\s*\\{(?:.+&.+)\\s*\\}", "gm");
+      let match = r.exec(jsdocComment.comment);
+      const dependencyRoot = jsdocComment.filename
+        .replace(`${process.cwd()}/`, "")
+        .replace(".js", "");
+      while (match && match.length) {
+        // since String.replaceAll is not available in all node versions..
+        // besides, it can probably be done with this regexp: / & /gi But it has its own issues
+        jsdocComment.comment = jsdocComment.comment
+          .split(" & ")
+          .map((comment, index) => {
+            if (index === 0) return comment;
+            // allow inline jsdoc like: {SomeType & {prop1: String, prop2: Boolean}}
+            if (comment[0] === "{") return ` | ${comment}`;
+            return ` | module:${dependencyRoot}~${comment}`;
+          })
+          .join("");
+        match = r.exec(jsdocComment.comment);
+      }
     }
+  },
 };
